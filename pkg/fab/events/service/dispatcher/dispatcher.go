@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package dispatcher
 
 import (
+	"encoding/json"
 	"math"
 	"reflect"
 	"regexp"
@@ -15,12 +16,14 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	cb "github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/internal/github.com/hyperledger/fabric/protoutil"
 	"github.com/hyperledger/fabric-sdk-go/internal/github.com/hyperledger/fabric/sdkinternal/pkg/txflags"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/logging"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/options"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
+	"github.com/hyperledger/fabric-sdk-go/pkg/util/vrf"
 	"github.com/pkg/errors"
 )
 
@@ -730,7 +733,7 @@ func getFilteredTransactionActions(data []byte) (*pb.FilteredTransaction_Transac
 	if err != nil {
 		return nil, errors.Wrap(err, "error unmarshalling chaincode action payload")
 	}
-	propRespPayload, err := protoutil.UnmarshalProposalResponsePayload(chaincodeActionPayload.Action.ProposalResponsePayload)
+	propRespPayload, err := UnmarshalProposalResponsePayload2(chaincodeActionPayload.Action.ProposalResponsePayload)
 	if err != nil {
 		return nil, errors.Wrap(err, "error unmarshalling response payload")
 	}
@@ -754,4 +757,15 @@ func (ed *Dispatcher) getState() int32 {
 
 func (ed *Dispatcher) setState(expectedState, newState int32) bool {
 	return atomic.CompareAndSwapInt32(&ed.state, expectedState, newState)
+}
+
+// Add by ztl
+func UnmarshalProposalResponsePayload2(prpBytes []byte) (*peer.ProposalResponsePayload, error) {
+	vrfcrp := &vrf.ChaincodeResponsePayload{}
+	if err := json.Unmarshal(prpBytes, vrfcrp); err != nil {
+		return nil, errors.Wrap(err, "error unmarshaling ChaincodeResponsePayload")
+	}
+	prp := &peer.ProposalResponsePayload{}
+	err := proto.Unmarshal(vrfcrp.Payload, prp)
+	return prp, errors.Wrap(err, "error unmarshaling ProposalResponsePayload")
 }

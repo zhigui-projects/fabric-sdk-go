@@ -9,18 +9,19 @@ package txn
 
 import (
 	reqContext "context"
+	"encoding/json"
 	"math/rand"
-
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/multi"
-	"github.com/pkg/errors"
 
 	"github.com/hyperledger/fabric-protos-go/common"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/internal/github.com/hyperledger/fabric/protoutil"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/multi"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/logging"
 	ctxprovider "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/context"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/hyperledger/fabric-sdk-go/pkg/context"
+	"github.com/hyperledger/fabric-sdk-go/pkg/util/vrf"
+	"github.com/pkg/errors"
 )
 
 var logger = logging.NewLogger("fabsdk/fab")
@@ -65,8 +66,17 @@ func New(request fab.TransactionRequest) (*fab.Transaction, error) {
 		endorsements[n] = r.ProposalResponse.Endorsement
 	}
 
+	// Add by ztl
+	prp, err := json.Marshal(&vrf.ChaincodeResponsePayload{
+		Payload:         responsePayload,
+		VrfEndorsements: nil,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	// create ChaincodeEndorsedAction
-	cea := &pb.ChaincodeEndorsedAction{ProposalResponsePayload: responsePayload, Endorsements: endorsements}
+	cea := &pb.ChaincodeEndorsedAction{ProposalResponsePayload: prp, Endorsements: endorsements}
 
 	// obtain the bytes of the proposal payload that will go to the transaction
 	propPayloadBytes, err := protoutil.GetBytesProposalPayloadForTx(pPayl)

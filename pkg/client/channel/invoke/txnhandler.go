@@ -8,9 +8,11 @@ package invoke
 
 import (
 	"bytes"
+	"encoding/json"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/status"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/options"
+	"github.com/hyperledger/fabric-sdk-go/pkg/util/vrf"
 	"github.com/pkg/errors"
 
 	"github.com/hyperledger/fabric-protos-go/common"
@@ -62,7 +64,17 @@ func (e *EndorsementHandler) Handle(requestContext *RequestContext, clientContex
 
 	requestContext.Response.Responses = transactionProposalResponses
 	if len(transactionProposalResponses) > 0 {
-		requestContext.Response.Payload = transactionProposalResponses[0].ProposalResponse.GetResponse().Payload
+		// Add by ztl
+		prp, err := json.Marshal(&vrf.ChaincodeResponsePayload{
+			Payload:         transactionProposalResponses[0].ProposalResponse.GetResponse().Payload,
+			VrfEndorsements: nil,
+		})
+		if err != nil {
+			requestContext.Error = err
+			return
+		}
+
+		requestContext.Response.Payload = prp
 		requestContext.Response.ChaincodeStatus = transactionProposalResponses[0].ChaincodeStatus
 	}
 
